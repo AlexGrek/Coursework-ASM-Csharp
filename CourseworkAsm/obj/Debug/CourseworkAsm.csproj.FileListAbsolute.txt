@@ -1,0 +1,6 @@
+C:\Users\Alexander\OneDrive\Coursework-ASM\Coursework\CourseworkAsm\bin\Debug\CourseworkAsm.exe.config
+C:\Users\Alexander\OneDrive\Coursework-ASM\Coursework\CourseworkAsm\bin\Debug\CourseworkAsm.exe
+C:\Users\Alexander\OneDrive\Coursework-ASM\Coursework\CourseworkAsm\bin\Debug\CourseworkAsm.pdb
+C:\Users\Alexander\OneDrive\Coursework-ASM\Coursework\CourseworkAsm\obj\Debug\CourseworkAsm.csprojResolveAssemblyReference.cache
+C:\Users\Alexander\OneDrive\Coursework-ASM\Coursework\CourseworkAsm\obj\Debug\CourseworkAsm.exe
+C:\Users\Alexander\OneDrive\Coursework-ASM\Coursework\CourseworkAsm\obj\Debug\CourseworkAsm.pdb
