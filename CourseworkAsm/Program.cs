@@ -13,20 +13,20 @@ namespace CourseworkAsm
         {
             Console.Write("Введiть шлях до файлу .asm: ");
             string s = Console.ReadLine();
-            if (string.IsNullOrEmpty(s))
+            if (string.IsNullOrEmpty(s)) //если введена пустая строка
             {
                 Console.WriteLine("Некоректне iм'я файлу");
                 Console.ReadKey();
-                return;
+                return; //выйти
             }
-            if (!s.ToLower().EndsWith(".asm"))
+            if (!s.ToLower().EndsWith(".asm")) //дописать .asm если не дописано
             {
                 s = s + ".asm";
             }
             string[] strings = null;
             try
             {
-                strings = ReadFile(s);
+                strings = ReadFile(s); //считаем файл как массив строк
                 int n = 0;
                 foreach (var s1 in strings)
                 {
@@ -41,27 +41,27 @@ namespace CourseworkAsm
                 return;
             }
             
-            var p = new Parser(strings);
-            p.Parse();
+            var p = new Parser(strings); //создадим парсер
+            p.Parse();                   //и запустим его
             Console.ReadKey();
         }
 
         static string[] ReadFile(string path)
         {
-            using (var stream = new FileStream(path, FileMode.Open))
+            using (var stream = new FileStream(path, FileMode.Open)) //создадим поток чтения
             {
                 var reader = new StreamReader(stream);
-                var strings = new List<string>();
+                var strings = new List<string>(); //список считанных строк
                 while (!reader.EndOfStream)
                 {
-                    var str = reader.ReadLine();
-                    str = str.Trim();
-                    int comment;
+                    var str = reader.ReadLine(); //читаем строку
+                    str = str.Trim(); //обрезаем начальные и конечные пробелы
+                    int comment;      //обрезаем комментарии
                     comment = str.IndexOf(';');
                     str = comment == -1 ? str : str.Substring(0, comment);
-                    strings.Add(str);
+                    strings.Add(str); //добавляем в список
                 }
-                return strings.ToArray();
+                return strings.ToArray(); //возвращаем как массив строк
             }
         }
     }

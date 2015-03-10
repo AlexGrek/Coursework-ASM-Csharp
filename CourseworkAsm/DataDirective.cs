@@ -9,24 +9,33 @@ namespace CourseworkAsm
 {
     class Variable : Instruction
     {
-        Regex name = new Regex(@"^[a-zA-Z][a-zA-Z\d]*(?=\s*d[bwd])");
-        Regex data = new Regex(@"(?<=d[dwb]\s*)[-\d][\dabcdef]*[hbd]?");
+        static Regex name = new Regex(@"^[a-zA-Z_]\w*(?=\s+d[bwd])");
+        Regex data = new Regex(@"(?<=\sd[dwb]\s+)[-\d][\dabcdef]*[hbd]?");
         Regex stringData = new Regex(@"(?<=db\s*)'.*'");
         Regex type = new Regex(@"\sd[bwd]\s");
 
         string _name;
+
+        public string Name
+        {
+            get { return _name; }
+        }
         DataType _type;
         int _len = 0;
 
-        byte[] _bytes;
+        public Segment Seg { get; private set; }
 
         public override int Length
         {
             get { return _len; }
         }
 
-        public Variable(string s)
+        public Variable(string s, Label l, Segment seg)
         {
+            Label = l;
+
+            Seg = seg;
+
             var varName = name.Match(s);
             if (varName.Success)
             {
@@ -92,6 +101,12 @@ namespace CourseworkAsm
                 Error = "Cannot detect variable data: " + s;
                 return;
             }
+
+            if (Seg == null)
+            {
+                Error = "No segment: " + s;
+                return;
+            }
             
         }
 
@@ -100,12 +115,21 @@ namespace CourseworkAsm
             if (IsError)
                 return Error;
             StringBuilder ans = new StringBuilder();
-            foreach (var b in _bytes)
+            /*foreach (var b in _bytes)
             {
                 ans.AppendFormat("{0:X} ", b);
-            }
-            ans.AppendFormat(" type: {0}, length: {1}", _type, _len);
+            }*/
+            ans.AppendFormat("Var name: '{2}', type: {0}, length: {1}", _type, _len, Name);
             return ans.ToString();
+        }
+
+        public static Variable Matches(string s, Label l, Segment seg)
+        {
+            if (name.Match(s).Success)
+            {
+                return new Variable(s, l, seg);
+            }
+            else return null;
         }
     }
 
