@@ -56,6 +56,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assume.cs" />
     <Compile Include="Command.cs" />
     <Compile Include="DataDirective.cs" />
     <Compile Include="Instruction.cs" />

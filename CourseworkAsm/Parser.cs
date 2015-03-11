@@ -14,6 +14,8 @@ namespace CourseworkAsm
         private List<Segment> _segments;    //список сегментов
         private Segment _currentSeg;    //текущий сегмент
         private Dictionary<string, Variable> _vars; //таблица переменных
+        private Assume _assume;
+        private bool _endfile = false;
 
 
         public Parser(string[] strings)
@@ -33,6 +35,13 @@ namespace CourseworkAsm
 
         public Line AnalyseString(string sl)
         {
+            //если директива 'end' уже была и строка не пуста
+            if (_endfile && !string.IsNullOrWhiteSpace(sl))
+            {
+                //не будем обрабатывать строку
+                return new Line("Cannot read after 'end' directive", sl);
+            }
+
             var instr = sl; //сохраним исходную строку
 
             //сначала считаем метку и удалимм ее из строки при нахождении
@@ -48,6 +57,27 @@ namespace CourseworkAsm
 
             //в нижний регистр для удобства
             var s = sl.ToLower();
+
+            //если это директива assume
+            if (s.StartsWith("assume "))
+            {
+                if (label != null)
+                    return new Line("Error: cannot add label to 'assume' directive", instr);
+                var a = Assume.Matches(s);
+                if (a != null)
+                {
+                    _assume = a;
+                    return new Line("Assume directive", instr);
+                }
+            }
+
+            //если это директива конца
+            if (s == "end")
+            {
+                //отметим конец файла и завершим обработку строки
+                _endfile = true;
+                return new Line("End of file", instr);
+            }
 
             //если это директива сегмента
             if (Segment.segStart.Match(s).Success) //если начало сегмента
@@ -90,6 +120,14 @@ namespace CourseworkAsm
                     //если элемент уже был добавлен
                     return new Line(new Empty(ex.Message, label), instr);
                 }
+            }
+            else
+            {
+                ins = Command.Matches(s, label);
+                if (ins != null)
+                {
+
+                }            
             }
             
 

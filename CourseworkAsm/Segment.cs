@@ -18,8 +18,8 @@ namespace CourseworkAsm
             get { return _segName; }
         }
 
-        public static Regex segStart = new Regex(@"^[_a-zA-Z][a-zA-Z\d]*(?=\s+segment)");
-        public static Regex segEnds = new Regex(@"^[a-zA-Z][a-zA-Z\d]*(?=\s+ends)");
+        public static Regex segStart = new Regex(@"^[_a-zA-Z][a-zA-Z\d]*(?=\s+segment$)");
+        public static Regex segEnds = new Regex(@"^[a-zA-Z][a-zA-Z\d]*(?=\s+ends$)");
 
         internal List<Instruction> Instructions
         {

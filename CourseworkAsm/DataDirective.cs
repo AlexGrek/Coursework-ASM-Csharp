@@ -10,7 +10,7 @@ namespace CourseworkAsm
     class Variable : Instruction
     {
         static Regex name = new Regex(@"^[a-zA-Z_]\w*(?=\s+d[bwd])");
-        Regex data = new Regex(@"(?<=\sd[dwb]\s+)[-\d][\dabcdef]*[hbd]?");
+        Regex data = new Regex(@"(?<=\sd[dwb]\s+)-?\d[\dabcdef]*[hbd]?");
         Regex stringData = new Regex(@"(?<=db\s*)'.*'");
         Regex type = new Regex(@"\sd[bwd]\s");
 
