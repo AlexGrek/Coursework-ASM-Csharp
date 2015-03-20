@@ -12,14 +12,15 @@ namespace CourseworkAsm
         private List<Instruction> _instructions;
         private string _segName;
         private Dictionary<string, Label> _labels;
+        private Dictionary<string, Variable> _vars;
 
         public string Name
         {
             get { return _segName; }
         }
 
-        public static Regex segStart = new Regex(@"^[_a-zA-Z][a-zA-Z\d]*(?=\s+segment$)");
-        public static Regex segEnds = new Regex(@"^[a-zA-Z][a-zA-Z\d]*(?=\s+ends$)");
+        public static Regex segStart = new Regex(@"^[_a-zA-Z][a-zA-Z\d]*(?=\s+segment$)", RegexOptions.IgnoreCase);
+        public static Regex segEnds = new Regex(@"^[a-zA-Z][a-zA-Z\d]*(?=\s+ends$)", RegexOptions.IgnoreCase);
 
         internal List<Instruction> Instructions
         {
@@ -32,16 +33,34 @@ namespace CourseworkAsm
             _segName = name;
             _instructions = new List<Instruction>();
             _labels = new Dictionary<string, Label>();
+            _vars = new Dictionary<string, Variable>();
         }
 
         public void Add(Instruction inst)
         {
             _instructions.Add(inst);
+            var v = inst as Variable;
+            if (v != null)
+            {
+                _vars.Add(v.Name, v);
+            }
         }
 
         public void Add(Label l)
         {
             _labels.Add(l.Name, l);
+        }
+
+        public bool ContainsVar(string name)
+        {
+            return _vars.ContainsKey(name);
+        }
+
+        public Variable GetVar(string name)
+        {
+            if (ContainsVar(name))
+                return _vars[name];
+            return null;
         }
     }
 }

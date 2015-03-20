@@ -6,21 +6,27 @@ namespace CourseworkAsm
 {
     abstract class Command : Instruction
     {
-        public static Regex r16 = new Regex("^((a|b|c|d)x|bp|sp|si|di)$");
-        public static Regex r32 = new Regex("^(e(a|b|c|d)x|ebp|esp|esi|edi)$");
-        public static Regex segment = new Regex(@"^(e|c|s|d|f|g|)s:");
-        public static Regex addr16 = new Regex(@"^[a-zA-Z_]\w*\[bx\+di]");
+        public static Regex r16 = new Regex("^((a|b|c|d)x|bp|sp|si|di)$", RegexOptions.IgnoreCase);
+        public static Regex r8 = new Regex("^((a|b|c|d)(h|l))$", RegexOptions.IgnoreCase);
+        public static Regex r32 = new Regex("^(e(a|b|c|d)x|ebp|esp|esi|edi)$", RegexOptions.IgnoreCase);
+        public static Regex segment = new Regex(@"^(e|c|s|d|f|g|)s:", RegexOptions.IgnoreCase);
+        public static Regex addr16ds = new Regex(@"^[a-zA-Z_]\w*(?=\[bx\+(d|s)i\]$)", RegexOptions.IgnoreCase);
+        public static Regex addr16ss = new Regex(@"^[a-zA-Z_]\w*(?=\[bp\+(d|s)i\]$)", RegexOptions.IgnoreCase);
+        public static Regex addr32ds = new Regex(@"^[a-zA-Z_]\w*(?=\[e([abcd]x|bp|[sd]i)\+e([abcd]x|[sb]p|[sd]i)\]$)", RegexOptions.IgnoreCase);
 
-        private string _seg;
+        internal string _seg;
+        private bool _explicitSegChange;
 
-        public void DetectSeg(ref string arg) 
+        public bool DetectSeg(ref string arg) 
         {
             var m = segment.Match(arg);
             if (m.Success)
             {
-                _seg = m.ToString();
-                arg = arg.Replace(_seg, "");
+                _seg = m.ToString().Substring(0, 2).ToLower();
+                arg = arg.Replace(m.ToString(), "");
+                _explicitSegChange = true;
             }
+            return m.Success;
         }
 
         public Command(Label l)
@@ -28,46 +34,90 @@ namespace CourseworkAsm
             Label = l;
         }
 
-        public static Command Matches(string s, Label l)
+        public bool ParseVarArg(string s, Assume a, out bool addr32, out Variable arg, out string reg1, out string reg2)
         {
-            if (s.StartsWith("nop")) 
+            addr32 = false;
+            Match m;
+            var sOverride = _seg;
+            arg = null;
+            reg1 = reg2 = null;
+
+            //var[bx+...]
+            m = addr16ds.Match(s);
+            if (m.Success)
+            {
+                var name = m.ToString();
+                var varSegment = a.WhatSegment(name);
+                if (_seg == null)
+                    _seg = varSegment;
+                if (varSegment == null)
+                    return false;
+                arg = a.GetVariable(name);
+                return true;
+            }
+
+            //var[bp+...]
+            m = addr16ss.Match(s);
+            if (m.Success)
+            {
+                var name = m.ToString();
+                var varSegment = a.WhatSegment(name);
+                if (!_explicitSegChange)
+                {
+                    _seg = varSegment;
+                    if (_seg == "ds")
+                        _seg = "ss";
+                }
+                if (varSegment == null)
+                    return false;
+                arg = a.GetVariable(name);
+                return true;
+            }
+
+            return false;
+        }
+
+        public static Command Matches(string s, Label l, Assume a)
+        {
+            var sl = s.ToLower();
+            if (sl.StartsWith("nop")) 
             {
                 return new Nop(s, l);
             }
-            if (s.StartsWith("jl"))
+            if (sl.StartsWith("jl"))
             {
                 return new Jl(s, l);
             }
-            if (s.StartsWith("jmp"))
+            if (sl.StartsWith("jmp"))
             {
                 return new Jmp(s, l);
             }
-            if (s.StartsWith("sbb"))
+            if (sl.StartsWith("sbb"))
             {
-                return new Sbb(s, l);
+                return new Sbb(s, l, a);
             }
-            if (s.StartsWith("shl"))
+            if (sl.StartsWith("shl"))
             {
                 return new Shl(s, l);
             }
-            if (s.StartsWith("mul"))
+            if (sl.StartsWith("mul"))
             {
                 return new Mul(s, l);
             }
-            if (s.StartsWith("not"))
+            if (sl.StartsWith("not"))
             {
                 return new Not(s, l);
             }
-            if (s.StartsWith("add"))
+            if (sl.StartsWith("add"))
             {
-                return new Add(s, l);
+                return new Add(s, l, a);
             }
             return null;
         }
 
         public override string ToString()
         {
-            return IsError ? Error : this.GetType().ToString();
+            return IsError ? Error : (this.GetType().ToString() + ((_seg == null) ? " noseg " : (" seg: " + _seg)));
         }
 
         public static string[] SplitArgs(string s, int commandLen)
@@ -86,7 +136,7 @@ namespace CourseworkAsm
     {
         public Nop(string s, Label l) : base(l) 
         {
-            if (s != "nop")
+            if (s.ToLower() != "nop")
             {
                 Error = "Error parsing NOP command";
             }
@@ -96,9 +146,11 @@ namespace CourseworkAsm
     class Sbb : Command
     {
         DataType _type;
+        Variable _arg;
+        String reg1, reg2;
+        bool a32; //32-битная адресация
 
-
-        public Sbb(string s, Label l) : base(l) 
+        public Sbb(string s, Label l, Assume a) : base(l) 
         {
             var args = SplitArgs(s, 3);
             if (args.Length != 2)
@@ -116,11 +168,25 @@ namespace CourseworkAsm
             {
                 _type = DataType.Dword;
             }
+            else if (r8.Match(args[0]).Success)
+            {
+                _type = DataType.Byte;
+            }
             else
             {
                 Error = "Wrong first argument";
                 return;
             }
+
+            DetectSeg(ref args[1]);
+
+            //обработать второй аргумент
+            if (ParseVarArg(args[1], a, out a32, out _arg))
+            {
+                if (_arg.Type != _type)
+                    Error = "Type mismatch: " + _arg.Type + " and " + _type;
+            }
+            else Error = "Wrong second arg: " + args[1];
            
         }
 
@@ -153,6 +219,10 @@ namespace CourseworkAsm
             {
                 _type = DataType.Dword;
             }
+            else if (r8.Match(args[0]).Success)
+            {
+                _type = DataType.Byte;
+            }
             else
             {
                 Error = "Wrong first argument";
@@ -160,7 +230,7 @@ namespace CourseworkAsm
             }
 
             //проверить второй аргумент - он может быть только cl
-            if (args[1] != "cl")
+            if (args[1].ToLower() != "cl")
             {
                 Error = "Wrong second argument";
                 return;
@@ -196,6 +266,10 @@ namespace CourseworkAsm
             {
                 _type = DataType.Dword;
             }
+            else if (r8.Match(args[0]).Success)
+            {
+                _type = DataType.Byte;
+            }
             else
             {
                 Error = "Wrong argument";
@@ -212,8 +286,11 @@ namespace CourseworkAsm
     class Add : Command
     {
         DataType _type;
+        Variable _arg;
+        String reg1, reg2;
+        bool a32; //32-битная адресация
 
-        public Add(string s, Label l) : base(l)
+        public Add(string s, Label l, Assume a) : base(l)
         {
             var args = SplitArgs(s, 3);
             if (args.Length != 2)
@@ -231,11 +308,23 @@ namespace CourseworkAsm
             {
                 _type = DataType.Dword;
             }
+            else if (r8.Match(args[1]).Success)
+            {
+                _type = DataType.Byte;
+            }
             else
             {
                 Error = "Wrong second argument";
                 return;
             }
+
+            //обработать первый аргумент
+            if (ParseVarArg(args[0], a, out a32, out _argб out reg1, out reg2))
+            {
+                if (_arg.Type != _type)
+                    Error = "Type mismatch: " + _arg.Type + " and " + _type;
+            }
+            else Error = "Wrong first arg: " + args[0];
         }
 
         public override string ToString()
@@ -246,8 +335,6 @@ namespace CourseworkAsm
 
     class Not : Command
     {
-        DataType _type;
-
         public Not(string s, Label l)
             : base(l)
         {

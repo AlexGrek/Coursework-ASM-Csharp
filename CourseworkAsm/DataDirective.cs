@@ -9,10 +9,10 @@ namespace CourseworkAsm
 {
     class Variable : Instruction
     {
-        static Regex name = new Regex(@"^[a-zA-Z_]\w*(?=\s+d[bwd])");
-        Regex data = new Regex(@"(?<=\sd[dwb]\s+)-?\d[\dabcdef]*[hbd]?");
-        Regex stringData = new Regex(@"(?<=db\s*)'.*'");
-        Regex type = new Regex(@"\sd[bwd]\s");
+        static Regex name = new Regex(@"^[a-zA-Z_]\w*(?=\s+d[bwd])", RegexOptions.IgnoreCase);
+        Regex data = new Regex(@"(?<=\sd[dwb]\s+)-?\d[\dabcdef]*[hbd]?", RegexOptions.IgnoreCase);
+        Regex stringData = new Regex(@"(?<=db\s*)'.*'", RegexOptions.IgnoreCase);
+        Regex type = new Regex(@"\sd[bwd]\s", RegexOptions.IgnoreCase);
 
         string _name;
 
@@ -21,6 +21,12 @@ namespace CourseworkAsm
             get { return _name; }
         }
         DataType _type;
+
+        public DataType Type
+        {
+            get { return _type; }
+        }
+
         int _len = 0;
 
         public Segment Seg { get; private set; }
@@ -85,7 +91,7 @@ namespace CourseworkAsm
             var numericMatch = data.Match(s);
             if (numericMatch.Success)
             {
-                var raw = numericMatch.ToString();
+                var raw = numericMatch.ToString().ToLower();
                 try
                 {
                     Parser.ParseConstant(raw, _type, out _bytes);
@@ -119,7 +125,7 @@ namespace CourseworkAsm
             {
                 ans.AppendFormat("{0:X} ", b);
             }*/
-            ans.AppendFormat("Var name: '{2}', type: {0}, length: {1}", _type, _len, Name);
+            ans.AppendFormat("Var name: '{2}', type: {0}, length: {1}, segment: {3}", _type, _len, Name, Seg.Name);
             return ans.ToString();
         }
 

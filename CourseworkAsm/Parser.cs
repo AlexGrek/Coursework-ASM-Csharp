@@ -11,7 +11,7 @@ namespace CourseworkAsm
     class Parser
     {
         private string[] _strings; //входной массив строк
-        private List<Segment> _segments;    //список сегментов
+        private Dictionary<string, Segment> _segments;    //список сегментов
         private Segment _currentSeg;    //текущий сегмент
         private Dictionary<string, Variable> _vars; //таблица переменных
         private Assume _assume;
@@ -25,7 +25,7 @@ namespace CourseworkAsm
 
         public void Parse()
         {
-            _segments = new List<Segment>();
+            _segments = new Dictionary<string,Segment>();
             _vars = new Dictionary<string, Variable>();
             foreach (var s in _strings)
             {
@@ -63,12 +63,14 @@ namespace CourseworkAsm
             {
                 if (label != null)
                     return new Line("Error: cannot add label to 'assume' directive", instr);
-                var a = Assume.Matches(s);
+                var a = Assume.Matches(sl, _segments);
                 if (a != null)
                 {
                     _assume = a;
                     return new Line("Assume directive", instr);
                 }
+                else
+                    return new Line("Error: incorrect assume directive", instr);
             }
 
             //если это директива конца
@@ -80,22 +82,22 @@ namespace CourseworkAsm
             }
 
             //если это директива сегмента
-            if (Segment.segStart.Match(s).Success) //если начало сегмента
+            if (Segment.segStart.Match(sl).Success) //если начало сегмента
             {
                 //начать сегмент
-                var segName = Segment.segStart.Match(s).Value;
+                var segName = Segment.segStart.Match(sl).Value;
                 if (_currentSeg != null)
                 {
                     return new Line("Error: declaring new segment inside segment " + _currentSeg.Name, instr);
                 }
                 _currentSeg = new Segment(segName);
-                _segments.Add(_currentSeg);
+                _segments.Add(segName, _currentSeg);
                 return new Line(new Empty("Segment " + segName + " started", label), instr);
             } else
-            if (Segment.segEnds.Match(s).Success) //если конец сегмента
+            if (Segment.segEnds.Match(sl).Success) //если конец сегмента
             {
                 //закрыть сегмент
-                var segName =  Segment.segEnds.Match(s).Value;
+                var segName =  Segment.segEnds.Match(sl).Value;
                 if (_currentSeg == null || segName != _currentSeg.Name)
                 {
                     return new Line("Error: cannot close segment " + segName, instr);
@@ -107,7 +109,7 @@ namespace CourseworkAsm
             Instruction ins; //если это не директива - значит, наверное, инструкция
 
             //может это переменная?
-            ins = Variable.Matches(s, label, _currentSeg);
+            ins = Variable.Matches(sl, label, _currentSeg);
             if (ins != null)
             {
                 try
@@ -123,7 +125,7 @@ namespace CourseworkAsm
             }
             else
             {
-                ins = Command.Matches(s, label);
+                ins = Command.Matches(sl, label, _assume);
                 if (ins != null)
                 {
 

@@ -28,6 +28,8 @@ namespace CourseworkAsm
 
         public Label Label { get; set;}
 
+        public int Offset { get; set; }
+
     }
 
     class Empty : Instruction
