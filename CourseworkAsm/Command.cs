@@ -13,6 +13,8 @@ namespace CourseworkAsm
         public static Regex addr16ds = new Regex(@"^[a-zA-Z_]\w*(?=\[bx\+(d|s)i\]$)", RegexOptions.IgnoreCase);
         public static Regex addr16ss = new Regex(@"^[a-zA-Z_]\w*(?=\[bp\+(d|s)i\]$)", RegexOptions.IgnoreCase);
         public static Regex addr32ds = new Regex(@"^[a-zA-Z_]\w*(?=\[e([abcd]x|bp|[sd]i)\+e([abcd]x|[sb]p|[sd]i)\]$)", RegexOptions.IgnoreCase);
+        public static Regex addr2r = new Regex(@"(?<=\[\s*(b[xp]|e([abcd]x|bp|[sd]i))\s*\+\s*)\w{2,3}(?=\s*\])", RegexOptions.IgnoreCase);
+        public static Regex addr32base = new Regex(@"(?<=\[\s*)\w+(?=\s*\+)", RegexOptions.IgnoreCase);
 
         internal string _seg;
         private bool _explicitSegChange;
@@ -46,6 +48,8 @@ namespace CourseworkAsm
             m = addr16ds.Match(s);
             if (m.Success)
             {
+                reg1 = "bx";
+                reg2 = addr2r.Match(s).ToString();
                 var name = m.ToString();
                 var varSegment = a.WhatSegment(name);
                 if (_seg == null)
@@ -60,6 +64,8 @@ namespace CourseworkAsm
             m = addr16ss.Match(s);
             if (m.Success)
             {
+                reg1 = "bp";
+                reg2 = addr2r.Match(s).ToString();
                 var name = m.ToString();
                 var varSegment = a.WhatSegment(name);
                 if (!_explicitSegChange)
@@ -70,6 +76,34 @@ namespace CourseworkAsm
                 }
                 if (varSegment == null)
                     return false;
+                arg = a.GetVariable(name);
+                return true;
+            }
+
+            //var[32bit]
+            m = addr32ds.Match(s);
+            if (m.Success)
+            {
+                reg1 = addr32base.Match(s).ToString();
+                reg2 = addr2r.Match(s).ToString();
+                var name = m.ToString();
+                var varSegment = a.WhatSegment(name);
+                if (varSegment == null)
+                    return false;
+                if (!_explicitSegChange) {
+                    if (reg1.ToLower() == "ebp")
+                    {
+                        if (varSegment == "ds")
+                            _seg = "ss";
+                        else
+                            _seg = varSegment;
+                    }
+                    else
+                    {
+                       _seg = varSegment;
+                    }
+
+                }
                 arg = a.GetVariable(name);
                 return true;
             }
@@ -106,7 +140,7 @@ namespace CourseworkAsm
             }
             if (sl.StartsWith("not"))
             {
-                return new Not(s, l);
+                return new Not(s, l, a);
             }
             if (sl.StartsWith("add"))
             {
@@ -139,6 +173,14 @@ namespace CourseworkAsm
             if (s.ToLower() != "nop")
             {
                 Error = "Error parsing NOP command";
+            }
+        }
+
+        public override int Length
+        {
+            get
+            {
+                return 1;
             }
         }
     }
@@ -181,7 +223,7 @@ namespace CourseworkAsm
             DetectSeg(ref args[1]);
 
             //обработать второй аргумент
-            if (ParseVarArg(args[1], a, out a32, out _arg))
+            if (ParseVarArg(args[1], a, out a32, out _arg, out reg1, out reg2))
             {
                 if (_arg.Type != _type)
                     Error = "Type mismatch: " + _arg.Type + " and " + _type;
@@ -192,7 +234,7 @@ namespace CourseworkAsm
 
         public override string ToString()
         {
-            return base.ToString() + (IsError ? "" : " Type: " + _type);
+            return base.ToString() + (IsError ? "" : " Type: " + _type) + " regs:" + reg1 + "+" + reg2;
         }
     }
 
@@ -318,8 +360,10 @@ namespace CourseworkAsm
                 return;
             }
 
+            DetectSeg(ref args[0]);
+
             //обработать первый аргумент
-            if (ParseVarArg(args[0], a, out a32, out _argб out reg1, out reg2))
+            if (ParseVarArg(args[0], a, out a32, out _arg, out reg1, out reg2))
             {
                 if (_arg.Type != _type)
                     Error = "Type mismatch: " + _arg.Type + " and " + _type;
@@ -335,7 +379,12 @@ namespace CourseworkAsm
 
     class Not : Command
     {
-        public Not(string s, Label l)
+        DataType _type;
+        Variable _arg;
+        String reg1, reg2;
+        bool a32; //32-битная адресация
+
+        public Not(string s, Label l, Assume a)
             : base(l)
         {
             var args = SplitArgs(s, 3);
@@ -345,7 +394,15 @@ namespace CourseworkAsm
                 return;
             }
 
-            
+            DetectSeg(ref args[0]);
+
+            //обработать первый аргумент
+            if (ParseVarArg(args[0], a, out a32, out _arg, out reg1, out reg2))
+            {
+                if (_arg.Type != _type)
+                    Error = "Type mismatch: " + _arg.Type + " and " + _type;
+            }
+            else Error = "Wrong first arg: " + args[0];
         }
     }
     
