@@ -30,6 +30,27 @@ namespace CourseworkAsm
 
         public int Offset { get; set; }
 
+        public virtual void Render()
+        {
+            if (IsError)
+                throw new AssemblerException(Error, this);
+        }
+
+        public string GetBytes()
+        {
+            StringBuilder s = new StringBuilder();
+            if (_bytes == null)
+                _bytes = new byte[this.Length];
+            foreach (byte b in _bytes)
+            {
+                if (b > 16)
+                    s.AppendFormat("{0:X} ", b);
+                else
+                    s.AppendFormat("0{0:X} ", b);
+            }
+            s.Append("  (" + _bytes.Length + ") ");
+            return s.ToString();
+        }
     }
 
     class Empty : Instruction

@@ -8,10 +8,21 @@ namespace CourseworkAsm
 {
     class Line
     {
-        public object Content;
+        public Instruction Content;
+        public string Error;
         public string Input;
 
-        public Line(object cont, string inp)
+        public bool IsInstruction() {
+            return Content != null;
+        }
+
+        public Line(string cont, string inp)
+        {
+            Error = cont;
+            Input = inp;
+        }
+
+        public Line(Instruction cont, string inp)
         {
             Content = cont;
             Input = inp;
@@ -19,7 +30,9 @@ namespace CourseworkAsm
 
         public override string ToString()
         {
-            return Content.ToString();
+            if (Content != null)
+                return Content.ToString();
+            else return Error;
         }
     }
 }

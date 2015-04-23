@@ -17,7 +17,8 @@ namespace CourseworkAsm
         public static Regex addr32base = new Regex(@"(?<=\[\s*)\w+(?=\s*\+)", RegexOptions.IgnoreCase);
 
         internal string _seg;
-        private bool _explicitSegChange;
+        internal bool _explicitSegChange;
+        internal int _len = 0;
 
         public bool DetectSeg(ref string arg) 
         {
@@ -29,6 +30,16 @@ namespace CourseworkAsm
                 _explicitSegChange = true;
             }
             return m.Success;
+        }
+
+        public static void InsertBytes(byte[] from, byte[] to, int startIndex, bool invert) 
+        {
+            if (invert)
+                Array.Reverse(from);
+            for (int i = 0; i < from.Length; i++)
+            {
+                to[startIndex + i] = from[i];
+            }
         }
 
         public Command(Label l)
@@ -84,6 +95,7 @@ namespace CourseworkAsm
             m = addr32ds.Match(s);
             if (m.Success)
             {
+                addr32 = true;
                 reg1 = addr32base.Match(s).ToString();
                 reg2 = addr2r.Match(s).ToString();
                 var name = m.ToString();
@@ -111,7 +123,7 @@ namespace CourseworkAsm
             return false;
         }
 
-        public static Command Matches(string s, Label l, Assume a)
+        public static Command Matches(string s, Label l, Assume a, Segment cseg)
         {
             var sl = s.ToLower();
             if (sl.StartsWith("nop")) 
@@ -120,11 +132,11 @@ namespace CourseworkAsm
             }
             if (sl.StartsWith("jl"))
             {
-                return new Jl(s, l);
+                return new Jl(s, l, cseg);
             }
             if (sl.StartsWith("jmp"))
             {
-                return new Jmp(s, l);
+                return new Jmp(s, l, cseg);
             }
             if (sl.StartsWith("sbb"))
             {
@@ -162,7 +174,7 @@ namespace CourseworkAsm
 
         public override int Length
         {
-            get { throw new NotImplementedException(); }
+            get { return 0;/*throw new NotImplementedException();*/ }
         }
     }
 
@@ -182,6 +194,13 @@ namespace CourseworkAsm
             {
                 return 1;
             }
+        }
+
+        public override void Render()
+        {
+            base.Render();
+
+            _bytes = new byte[] { 0x90 };
         }
     }
 
@@ -282,6 +301,20 @@ namespace CourseworkAsm
         public override string ToString()
         {
             return base.ToString() + (IsError ? "" : " Type: " + _type);
+        }
+
+        public override int Length
+        {
+            get
+            {
+                if (_len != 0)
+                    return _len;
+                int len = 2;         
+                if (this._type == DataType.Dword)
+                    len++; //и префикс замены разрядности данных
+                _len = len;
+                return len;
+            }
         }
     }
 
@@ -396,13 +429,29 @@ namespace CourseworkAsm
 
             DetectSeg(ref args[0]);
 
-            //обработать первый аргумент
-            if (ParseVarArg(args[0], a, out a32, out _arg, out reg1, out reg2))
+            //обработать аргумент
+            if (!ParseVarArg(args[0], a, out a32, out _arg, out reg1, out reg2))
+                Error = "Wrong argument: " + args[0];
+            else
+                _type = _arg.Type;
+        }
+
+        public override int Length
+        {
+            get
             {
-                if (_arg.Type != _type)
-                    Error = "Type mismatch: " + _arg.Type + " and " + _type;
+                if (_len != 0) 
+                    return _len;
+                int len = 4;
+                if (a32) //учтем режим 32-разрядной адресации
+                    len = 8;
+                if (this._seg != "ds" || this._explicitSegChange)
+                    len++; //учтем возможный префикс замены сегмента
+                if (this._type == DataType.Dword)
+                    len++; //и префикс замены разрядности данных
+                _len = len;
+                return len;
             }
-            else Error = "Wrong first arg: " + args[0];
         }
     }
     

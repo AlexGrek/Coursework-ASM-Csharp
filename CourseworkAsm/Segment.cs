@@ -12,11 +12,22 @@ namespace CourseworkAsm
         private List<Instruction> _instructions;
         private string _segName;
         private Dictionary<string, Label> _labels;
+
+        internal Dictionary<string, Label> Labels
+        {
+            get { return _labels; }
+        }
         private Dictionary<string, Variable> _vars;
+        public int CurrentOffset = 0;
 
         public string Name
         {
             get { return _segName; }
+        }
+
+        public void AddLabel(Label l)
+        {
+            _labels.Add(l.Name, l);
         }
 
         public static Regex segStart = new Regex(@"^[_a-zA-Z][a-zA-Z\d]*(?=\s+segment$)", RegexOptions.IgnoreCase);

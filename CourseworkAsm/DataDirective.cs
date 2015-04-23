@@ -66,7 +66,7 @@ namespace CourseworkAsm
             var typeMatch = type.Match(s);
             if (typeMatch.Success)
             {
-                switch (typeMatch.ToString()[2])
+                switch (typeMatch.ToString().ToLower()[2])
                 {
                     case 'b':
                         _len = 1;
@@ -80,6 +80,8 @@ namespace CourseworkAsm
                         _len = 4;
                         _type = DataType.Dword;
                         break;
+                    default:
+                        throw new Exception("Aaaaaaaaa!");
                 }
             }
             else

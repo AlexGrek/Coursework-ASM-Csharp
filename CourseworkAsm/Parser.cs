@@ -16,11 +16,13 @@ namespace CourseworkAsm
         private Dictionary<string, Variable> _vars; //таблица переменных
         private Assume _assume;
         private bool _endfile = false;
+        private List<Line> _lines;
 
 
         public Parser(string[] strings)
         {
             _strings = strings;
+            _lines = new List<Line>(_strings.Length);
         }
 
         public void Parse()
@@ -29,9 +31,63 @@ namespace CourseworkAsm
             _vars = new Dictionary<string, Variable>();
             foreach (var s in _strings)
             {
-                Console.WriteLine(AnalyseString(s) + " \t\t " + s);
+                var line = AnalyseString(s);
+                _lines.Add(line);
+                Console.WriteLine(line.ToString() + " \t\t " + s);
             }
         }
+
+        public void ShowLst()
+        {
+            Console.WriteLine("Alex Grek's Assembler, {0}", DateTime.Now.ToString());
+            int n = 1;
+            foreach (Line line in _lines)
+            {
+                if (line.IsInstruction())
+                {
+                    var instr = line.Content;
+                    try
+                        {
+                            instr.Render();
+                            if ((instr as Command) != null || (instr as Variable) != null)
+                                Console.WriteLine("{0}  {1}\t\t{2}", LineNumber(instr), instr.GetBytes(), line.Input);
+                            else
+                                Console.WriteLine("\t\t\t{0}", line.Input);
+                        }
+                    catch (AssemblerException) 
+                    {
+                        ShowError(n, line);
+                        Console.WriteLine("{0}\t\t{2}\n Error: {1}", LineNumber(instr), instr.Error, line.Input);
+                    }
+                }
+                n++;
+            }
+        }
+
+        public static string LineNumber(Instruction instr)
+        {
+            if (instr.Offset < 0x0010)
+                return String.Format("000{0:X}", instr.Offset);
+            if (instr.Offset < 0x0100)
+                return String.Format("00{0:X}", instr.Offset);
+            if (instr.Offset < 0x1000)
+                return String.Format("0{0:X}", instr.Offset);
+            return String.Format("{0:X}", instr.Offset);
+        }
+
+        private void ShowError(int lineNumber, Line line)
+        {
+            if (line.IsInstruction())
+            {
+                Console.WriteLine("Error at line {0}: {1}\n{2}", lineNumber, line.Input, line.Content.Error);
+            }
+            else
+            {
+                Console.WriteLine("Error at line {0}: {1}\n{2}", lineNumber, line.Input, line.Error);
+            }
+        }
+
+
 
         public Line AnalyseString(string sl)
         {
@@ -44,8 +100,17 @@ namespace CourseworkAsm
 
             var instr = sl; //сохраним исходную строку
 
-            //сначала считаем метку и удалимм ее из строки при нахождении
-            var label = Label.ReadLabels(ref sl);
+            //сначала считаем метку и удалим ее из строки при нахождении
+            var label = Label.ReadLabels(ref sl, _currentSeg);
+            if (label != null)
+                try
+                {
+                    _currentSeg.AddLabel(label);
+                }
+                catch
+                {
+                    return new Line("Error: cannot add label " + label.Name, instr);
+                }
 
             if (string.IsNullOrEmpty(sl)) //если оставшаяся строка пустая
             {
@@ -125,7 +190,8 @@ namespace CourseworkAsm
             }
             else
             {
-                ins = Command.Matches(sl, label, _assume);
+                //может это команда процессора?
+                ins = Command.Matches(sl, label, _assume, _currentSeg);
                 if (ins != null)
                 {
 
@@ -141,6 +207,8 @@ namespace CourseworkAsm
                     return new Line("Error: no segment to write in", instr);
                 }
                 _currentSeg.Add(ins); //добавить в сегмент
+                ins.Offset = _currentSeg.CurrentOffset; //установить смещение в команде
+                _currentSeg.CurrentOffset += ins.Length; //увеличить текущеее смещение в сегменте на длину комманды
                 return new Line(ins, s);
             }
 

@@ -44,6 +44,8 @@ namespace CourseworkAsm
             var p = new Parser(strings); //создадим парсер
             p.Parse();                   //и запустим его
             Console.ReadKey();
+            p.ShowLst();                 //и посмотрим, что он нам покажет
+            Console.ReadKey();
         }
 
         static string[] ReadFile(string path)
