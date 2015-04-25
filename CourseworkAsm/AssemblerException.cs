@@ -18,6 +18,7 @@ namespace CourseworkAsm
 
         public AssemblerException(string text, Instruction bad)
         {
+            _bad = bad;
             _exText = text;
         }
 

@@ -30,8 +30,8 @@ namespace CourseworkAsm
             _labels.Add(l.Name, l);
         }
 
-        public static Regex segStart = new Regex(@"^[_a-zA-Z][a-zA-Z\d]*(?=\s+segment$)", RegexOptions.IgnoreCase);
-        public static Regex segEnds = new Regex(@"^[a-zA-Z][a-zA-Z\d]*(?=\s+ends$)", RegexOptions.IgnoreCase);
+        public static Regex segStart = new Regex(@"^[_a-zA-Z][a-zA-Z\d]*(?=\s+segment\s*$)", RegexOptions.IgnoreCase);
+        public static Regex segEnds = new Regex(@"^[a-zA-Z][a-zA-Z\d]*(?=\s+ends\s*$)", RegexOptions.IgnoreCase);
 
         internal List<Instruction> Instructions
         {

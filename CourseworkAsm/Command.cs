@@ -178,6 +178,8 @@ namespace CourseworkAsm
         }
     }
 
+    #region Commands
+
     class Nop : Command
     {
         public Nop(string s, Label l) : base(l) 
@@ -201,59 +203,6 @@ namespace CourseworkAsm
             base.Render();
 
             _bytes = new byte[] { 0x90 };
-        }
-    }
-
-    class Sbb : Command
-    {
-        DataType _type;
-        Variable _arg;
-        String reg1, reg2;
-        bool a32; //32-битная адресация
-
-        public Sbb(string s, Label l, Assume a) : base(l) 
-        {
-            var args = SplitArgs(s, 3);
-            if (args.Length != 2)
-            {
-                Error = "Wrong arguments count";
-                return;
-            }
-
-            // проверить первый аргумент
-            if (r16.Match(args[0]).Success)
-            {
-                _type = DataType.Word;
-            }
-            else if (r32.Match(args[0]).Success)
-            {
-                _type = DataType.Dword;
-            }
-            else if (r8.Match(args[0]).Success)
-            {
-                _type = DataType.Byte;
-            }
-            else
-            {
-                Error = "Wrong first argument";
-                return;
-            }
-
-            DetectSeg(ref args[1]);
-
-            //обработать второй аргумент
-            if (ParseVarArg(args[1], a, out a32, out _arg, out reg1, out reg2))
-            {
-                if (_arg.Type != _type)
-                    Error = "Type mismatch: " + _arg.Type + " and " + _type;
-            }
-            else Error = "Wrong second arg: " + args[1];
-           
-        }
-
-        public override string ToString()
-        {
-            return base.ToString() + (IsError ? "" : " Type: " + _type) + " regs:" + reg1 + "+" + reg2;
         }
     }
 
@@ -296,6 +245,7 @@ namespace CourseworkAsm
                 Error = "Wrong second argument";
                 return;
             }
+
         }
 
         public override string ToString()
@@ -311,7 +261,7 @@ namespace CourseworkAsm
                     return _len;
                 int len = 2;         
                 if (this._type == DataType.Dword)
-                    len++; //и префикс замены разрядности данных
+                    len++; //префикс замены разрядности данных
                 _len = len;
                 return len;
             }
@@ -352,107 +302,28 @@ namespace CourseworkAsm
             }
         }
 
-        public override string ToString()
-        {
-            return base.ToString() + (IsError ? "" : " Type: " + _type);
-        }
-    }
-
-    class Add : Command
-    {
-        DataType _type;
-        Variable _arg;
-        String reg1, reg2;
-        bool a32; //32-битная адресация
-
-        public Add(string s, Label l, Assume a) : base(l)
-        {
-            var args = SplitArgs(s, 3);
-            if (args.Length != 2)
-            {
-                Error = "Wrong arguments count";
-                return;
-            }
-
-            // проверить второй аргумент
-            if (r16.Match(args[1]).Success)
-            {
-                _type = DataType.Word;
-            }
-            else if (r32.Match(args[1]).Success)
-            {
-                _type = DataType.Dword;
-            }
-            else if (r8.Match(args[1]).Success)
-            {
-                _type = DataType.Byte;
-            }
-            else
-            {
-                Error = "Wrong second argument";
-                return;
-            }
-
-            DetectSeg(ref args[0]);
-
-            //обработать первый аргумент
-            if (ParseVarArg(args[0], a, out a32, out _arg, out reg1, out reg2))
-            {
-                if (_arg.Type != _type)
-                    Error = "Type mismatch: " + _arg.Type + " and " + _type;
-            }
-            else Error = "Wrong first arg: " + args[0];
-        }
-
-        public override string ToString()
-        {
-            return base.ToString() + (IsError ? "" : " Type: " + _type);
-        }
-    }
-
-    class Not : Command
-    {
-        DataType _type;
-        Variable _arg;
-        String reg1, reg2;
-        bool a32; //32-битная адресация
-
-        public Not(string s, Label l, Assume a)
-            : base(l)
-        {
-            var args = SplitArgs(s, 3);
-            if (args.Length != 1)
-            {
-                Error = "Wrong arguments count";
-                return;
-            }
-
-            DetectSeg(ref args[0]);
-
-            //обработать аргумент
-            if (!ParseVarArg(args[0], a, out a32, out _arg, out reg1, out reg2))
-                Error = "Wrong argument: " + args[0];
-            else
-                _type = _arg.Type;
-        }
-
         public override int Length
         {
             get
             {
-                if (_len != 0) 
+                if (_len != 0)
                     return _len;
-                int len = 4;
-                if (a32) //учтем режим 32-разрядной адресации
-                    len = 8;
-                if (this._seg != "ds" || this._explicitSegChange)
-                    len++; //учтем возможный префикс замены сегмента
+                int len = 2;
                 if (this._type == DataType.Dword)
-                    len++; //и префикс замены разрядности данных
+                    len++; //префикс замены разрядности данных
                 _len = len;
                 return len;
             }
         }
+
+        public override string ToString()
+        {
+            return base.ToString() + (IsError ? "" : " Type: " + _type);
+        }
     }
+
     
+    
+    #endregion
+
 }

@@ -57,10 +57,10 @@ namespace CourseworkAsm
                 while (!reader.EndOfStream)
                 {
                     var str = reader.ReadLine(); //читаем строку
-                    str = str.Trim(); //обрезаем начальные и конечные пробелы
                     int comment;      //обрезаем комментарии
                     comment = str.IndexOf(';');
                     str = comment == -1 ? str : str.Substring(0, comment);
+                    str = str.Trim(); //обрезаем начальные и конечные пробелы
                     strings.Add(str); //добавляем в список
                 }
                 return strings.ToArray(); //возвращаем как массив строк

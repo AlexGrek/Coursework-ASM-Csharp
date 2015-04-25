@@ -39,7 +39,7 @@ namespace CourseworkAsm
 
         public void ShowLst()
         {
-            Console.WriteLine("Alex Grek's Assembler, {0}", DateTime.Now.ToString());
+            Out(String.Format("Alex Grek's Assembler, {0}", DateTime.Now.ToString()));
             int n = 1;
             foreach (Line line in _lines)
             {
@@ -50,18 +50,51 @@ namespace CourseworkAsm
                         {
                             instr.Render();
                             if ((instr as Command) != null || (instr as Variable) != null)
-                                Console.WriteLine("{0}  {1}\t\t{2}", LineNumber(instr), instr.GetBytes(), line.Input);
+                                Out(String.Format("{0}  {1}\t {2}", LineNumber(instr), instr.GetBytes(), line.Input));
                             else
-                                Console.WriteLine("\t\t\t{0}", line.Input);
+                                Out(String.Format("\t\t\t{0}", line.Input));
                         }
                     catch (AssemblerException) 
                     {
                         ShowError(n, line);
-                        Console.WriteLine("{0}\t\t{2}\n Error: {1}", LineNumber(instr), instr.Error, line.Input);
+                        Out(String.Format("{0}\t\t{2}\n Error: {1}", LineNumber(instr), instr.Error, line.Input));
                     }
                 }
                 n++;
             }
+
+            Out("\n");
+            Out("\tVariables\n");
+            foreach (var pair in _vars)
+            {
+                var v = pair.Value;
+                Out(String.Format("{0}\t\t{1}({3:x}) : {4:x} in {2}", v.Name, v.Type, v.Seg.Name, v.Length, v.Offset));
+            }
+
+            Out("\n");
+            Out("\tSegments\n");
+            foreach (var pair in _segments)
+            {
+                var seg = pair.Value;
+                Out(String.Format("{0}\t\t : 0{1:x}", seg.Name, seg.CurrentOffset));
+            }
+
+            Out("\n");
+            Out("\tLabels\n");
+            foreach (var pair in _segments)
+            {
+                var labels = pair.Value.Labels;
+                foreach (var p in labels)
+                {
+                    var label = p.Value;
+                    Out(String.Format("{0}\t\t : 0{1:x} in {2}", label.Name, label.Offset, pair.Value.Name));
+                }
+            }
+        }
+
+        public void Out(String s)
+        {
+            Console.WriteLine(s);
         }
 
         public static string LineNumber(Instruction instr)

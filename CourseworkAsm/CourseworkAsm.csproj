@@ -57,6 +57,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AdressCommands.cs" />
     <Compile Include="AssemblerException.cs" />
     <Compile Include="Assume.cs" />
     <Compile Include="Command.cs" />
