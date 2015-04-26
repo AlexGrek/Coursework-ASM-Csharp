@@ -44,7 +44,13 @@ namespace CourseworkAsm
             var p = new Parser(strings); //создадим парсер
             p.Parse();                   //и запустим его
             Console.ReadKey();
-            p.ShowLst();                 //и посмотрим, что он нам покажет
+
+            using (Stream outfile = new FileStream("listing.lst", File.Exists("listing.lst") ? FileMode.Truncate : FileMode.CreateNew)) {
+                var writer = new StreamWriter(outfile);
+                p.ShowLst(writer);                 //и посмотрим, что он нам покажет
+                outfile.Flush();
+            }
+
             Console.ReadKey();
         }
 

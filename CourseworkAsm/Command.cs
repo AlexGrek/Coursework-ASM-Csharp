@@ -55,6 +55,9 @@ namespace CourseworkAsm
             arg = null;
             reg1 = reg2 = null;
 
+            if (a == null)
+                return false;
+
             //var[bx+...]
             m = addr16ds.Match(s);
             if (m.Success)
@@ -125,6 +128,11 @@ namespace CourseworkAsm
 
         public static Command Matches(string s, Label l, Assume a, Segment cseg)
         {
+            //ничего не делать, если вне сегмента
+            if (cseg == null)
+                return null;
+
+            //попытаться определить команду
             var sl = s.ToLower();
             if (sl.StartsWith("nop")) 
             {
@@ -158,6 +166,7 @@ namespace CourseworkAsm
             {
                 return new Add(s, l, a);
             }
+            //если не определили
             return null;
         }
 
@@ -169,12 +178,17 @@ namespace CourseworkAsm
         public static string[] SplitArgs(string s, int commandLen)
         {
             s = s.Remove(0, commandLen + 1).Trim();
-            return s.Split(new string[1] {", "}, StringSplitOptions.RemoveEmptyEntries);
+            var args = s.Split(new string[1] {", "}, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < args.Length; i++)
+            {
+                args[i] = args[i].Trim();
+            }
+            return args;
         }
 
         public override int Length
         {
-            get { return 0;/*throw new NotImplementedException();*/ }
+            get { throw new NotImplementedException(); }
         }
     }
 

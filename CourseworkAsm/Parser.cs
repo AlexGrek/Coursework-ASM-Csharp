@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -17,6 +18,7 @@ namespace CourseworkAsm
         private Assume _assume;
         private bool _endfile = false;
         private List<Line> _lines;
+        private StreamWriter _writer;
 
 
         public Parser(string[] strings)
@@ -37,8 +39,10 @@ namespace CourseworkAsm
             }
         }
 
-        public void ShowLst()
+        public void ShowLst(StreamWriter to)
         {
+            _writer = to;
+
             Out(String.Format("Alex Grek's Assembler, {0}", DateTime.Now.ToString()));
             int n = 1;
             foreach (Line line in _lines)
@@ -68,7 +72,7 @@ namespace CourseworkAsm
             foreach (var pair in _vars)
             {
                 var v = pair.Value;
-                Out(String.Format("{0}\t\t{1}({3:x}) : {4:x} in {2}", v.Name, v.Type, v.Seg.Name, v.Length, v.Offset));
+                Out(String.Format("{0}\t\t{1}({3:x}) : {4:x} in {2}", v.Name, v.Type, v.Seg != null ? v.Seg.Name : "UNKNOWN", v.Length, v.Offset));
             }
 
             Out("\n");
@@ -94,7 +98,12 @@ namespace CourseworkAsm
 
         public void Out(String s)
         {
-            Console.WriteLine(s);
+            if (_writer != null)
+            {
+                _writer.WriteLine(s);
+                _writer.Flush();
+            } else
+                Console.WriteLine(s);
         }
 
         public static string LineNumber(Instruction instr)
