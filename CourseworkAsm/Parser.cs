@@ -45,6 +45,7 @@ namespace CourseworkAsm
 
             Out(String.Format("Alex Grek's Assembler, {0}", DateTime.Now.ToString()));
             int n = 1;
+            int errors = 0;
             foreach (Line line in _lines)
             {
                 if (line.IsInstruction())
@@ -62,6 +63,7 @@ namespace CourseworkAsm
                     {
                         ShowError(n, line);
                         Out(String.Format("{0}\t\t{2}\n Error: {1}", LineNumber(instr), instr.Error, line.Input));
+                        errors++;
                     }
                 }
                 n++;
@@ -94,6 +96,8 @@ namespace CourseworkAsm
                     Out(String.Format("{0}\t\t : 0{1:x} in {2}", label.Name, label.Offset, pair.Value.Name));
                 }
             }
+
+            Console.WriteLine("\t Errors: {0}", errors);
         }
 
         public void Out(String s)

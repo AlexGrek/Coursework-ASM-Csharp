@@ -36,7 +36,7 @@ namespace CourseworkAsm
                 throw new AssemblerException(Error, this);
         }
 
-        public string GetBytes()
+        public virtual string GetBytes()
         {
             StringBuilder s = new StringBuilder();
             if (_bytes == null)

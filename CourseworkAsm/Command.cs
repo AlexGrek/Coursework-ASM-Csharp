@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace CourseworkAsm
@@ -16,18 +17,26 @@ namespace CourseworkAsm
         public static Regex addr2r = new Regex(@"(?<=\[\s*(b[xp]|e([abcd]x|bp|[sd]i))\s*\+\s*)\w{2,3}(?=\s*\])", RegexOptions.IgnoreCase);
         public static Regex addr32base = new Regex(@"(?<=\[\s*)\w+(?=\s*\+)", RegexOptions.IgnoreCase);
 
-        internal string _seg;
-        internal bool _explicitSegChange;
+        public bool Data32
+        {
+            get
+            {
+                return _type == DataType.Dword;
+            }
+        }
+
+        internal string _defSeg;
+        internal string _targetSeg;
         internal int _len = 0;
+        internal DataType _type;
 
         public bool DetectSeg(ref string arg) 
         {
             var m = segment.Match(arg);
             if (m.Success)
             {
-                _seg = m.ToString().Substring(0, 2).ToLower();
+                _targetSeg = m.ToString().Substring(0, 2).ToLower();
                 arg = arg.Replace(m.ToString(), "");
-                _explicitSegChange = true;
             }
             return m.Success;
         }
@@ -51,7 +60,6 @@ namespace CourseworkAsm
         {
             addr32 = false;
             Match m;
-            var sOverride = _seg;
             arg = null;
             reg1 = reg2 = null;
 
@@ -66,8 +74,9 @@ namespace CourseworkAsm
                 reg2 = addr2r.Match(s).ToString();
                 var name = m.ToString();
                 var varSegment = a.WhatSegment(name);
-                if (_seg == null)
-                    _seg = varSegment;
+                _defSeg = "ds";
+                if (_targetSeg == null)
+                    _targetSeg = varSegment;
                 if (varSegment == null)
                     return false;
                 arg = a.GetVariable(name);
@@ -82,12 +91,9 @@ namespace CourseworkAsm
                 reg2 = addr2r.Match(s).ToString();
                 var name = m.ToString();
                 var varSegment = a.WhatSegment(name);
-                if (!_explicitSegChange)
-                {
-                    _seg = varSegment;
-                    if (_seg == "ds")
-                        _seg = "ss";
-                }
+                _defSeg = "ss";
+                if (_targetSeg == null)
+                    _targetSeg = varSegment;
                 if (varSegment == null)
                     return false;
                 arg = a.GetVariable(name);
@@ -105,17 +111,18 @@ namespace CourseworkAsm
                 var varSegment = a.WhatSegment(name);
                 if (varSegment == null)
                     return false;
-                if (!_explicitSegChange) {
+                 {
                     if (reg1.ToLower() == "ebp")
                     {
-                        if (varSegment == "ds")
-                            _seg = "ss";
-                        else
-                            _seg = varSegment;
+                        _defSeg = "ss";
+                        if (_targetSeg == null)
+                            _targetSeg = varSegment;
                     }
                     else
                     {
-                       _seg = varSegment;
+                        _defSeg = "ds";
+                        if (_targetSeg == null)
+                            _targetSeg = varSegment;
                     }
 
                 }
@@ -170,20 +177,16 @@ namespace CourseworkAsm
             return null;
         }
 
-        public override string ToString()
-        {
-            return IsError ? Error : (this.GetType().ToString() + ((_seg == null) ? " noseg " : (" seg: " + _seg)));
-        }
-
         public static string[] SplitArgs(string s, int commandLen)
         {
             s = s.Remove(0, commandLen + 1).Trim();
-            var args = s.Split(new string[1] {", "}, StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < args.Length; i++)
+
+            var splt = Regex.Split(s, @",\s*");
+            for (int i = 0; i < splt.Length; i++)
             {
-                args[i] = args[i].Trim();
+                splt[i] = splt[i].Trim();
             }
-            return args;
+            return splt;
         }
 
         public override int Length
@@ -222,7 +225,7 @@ namespace CourseworkAsm
 
     class Shl : Command
     {
-        DataType _type;
+        private string _reg;
 
         public Shl(string s, Label l)
             : base(l)
@@ -253,6 +256,8 @@ namespace CourseworkAsm
                 return;
             }
 
+            _reg = args[0].ToLower();
+
             //проверить второй аргумент - он может быть только cl
             if (args[1].ToLower() != "cl")
             {
@@ -280,11 +285,57 @@ namespace CourseworkAsm
                 return len;
             }
         }
+
+        public override string GetBytes()
+        {
+            StringBuilder s = new StringBuilder();
+            if (_bytes == null)
+                _bytes = new byte[this.Length];
+            if (Data32)
+                s.Append("66| ");
+            foreach (byte b in _bytes)
+            {
+                if (b > 16)
+                    s.AppendFormat("{0:X} ", b);
+                else
+                    s.AppendFormat("0{0:X} ", b);
+            }
+            s.Append("  (" + this.Length + ") ");
+            return s.ToString();
+        }
+
+        public override void Render()
+        {
+            _bytes = new byte[2];
+
+            //код команды
+            if (_type == DataType.Byte)
+                _bytes[0] = 0xD2;
+            else
+                _bytes[0] = 0xD3;
+
+            //ModRM
+            byte modrm = 0xE0;
+            switch (_type)
+            {
+                case DataType.Dword:
+                    modrm ^= Regs.Reg32[_reg];
+                    break;
+                case DataType.Byte:
+                    modrm ^= Regs.Reg8[_reg];
+                    break;
+                case DataType.Word:
+                    modrm ^= Regs.Reg16[_reg];
+                    break;
+            }
+
+            _bytes[1] = modrm;
+        }
     }
 
     class Mul : Command
     {
-        DataType _type;
+        private string _reg;
 
         public Mul(string s, Label l)
             : base(l)
@@ -314,6 +365,8 @@ namespace CourseworkAsm
                 Error = "Wrong argument";
                 return;
             }
+
+            _reg = args[0].ToLower();
         }
 
         public override int Length
@@ -328,6 +381,52 @@ namespace CourseworkAsm
                 _len = len;
                 return len;
             }
+        }
+
+        public override string GetBytes()
+        {
+            StringBuilder s = new StringBuilder();
+            if (_bytes == null)
+                _bytes = new byte[this.Length];
+            if (Data32)
+                s.Append("66| ");
+            foreach (byte b in _bytes)
+            {
+                if (b > 16)
+                    s.AppendFormat("{0:X} ", b);
+                else
+                    s.AppendFormat("0{0:X} ", b);
+            }
+            s.Append("  (" + this.Length + ") ");
+            return s.ToString();
+        }
+
+        public override void Render()
+        {
+            _bytes = new byte[2];
+
+            //код команды
+            if (_type == DataType.Byte)
+                _bytes[0] = 0xF6;
+            else
+                _bytes[0] = 0xF7;
+
+            //ModRM
+            byte modrm = 0xE0;
+            switch (_type)
+            {
+                case DataType.Dword:
+                    modrm ^= Regs.Reg32[_reg];
+                    break;
+                case DataType.Byte:
+                     modrm ^= Regs.Reg8[_reg];
+                    break;
+                case DataType.Word:
+                    modrm ^= Regs.Reg16[_reg];
+                    break;
+            }
+
+            _bytes[1] = modrm;
         }
 
         public override string ToString()
